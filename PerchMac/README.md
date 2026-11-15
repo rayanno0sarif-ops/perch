@@ -1,7 +1,6 @@
 # Perch for Mac
 
-A native Swift/SwiftUI/AppKit version of Perch (macOS 14+). **It was written on a Windows PC with no Swift toolchain, so it has never been compiled or run.**
-Expect a round of compile fixes the first time you build it. Nothing here has been tested.
+A native Swift/SwiftUI/AppKit version of Perch (macOS 14+). **It was written on a Windows PC. It now compiles in CI (GitHub Actions, macOS runner), but it has never been launched, so nothing here has been tested at runtime.**
 
 ## Build
 

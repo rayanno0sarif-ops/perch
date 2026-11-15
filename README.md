@@ -7,7 +7,7 @@ Perch is an original app. It is inspired by the look of NotchPixel and by the fe
 | | Status |
 |---|---|
 | **Windows** (`Perch/`) | Built and used day to day. WPF on .NET 10. |
-| **macOS** (`PerchMac/`) | Written, **never compiled or run**: it was authored on a Windows PC with no Swift toolchain. Expect compile fixes. |
+| **macOS** (`PerchMac/`) | Written on a Windows PC, **compiles in CI on a Mac runner, but has never been run**. Expect runtime bugs. |
 
 Landing page: [`docs/index.html`](docs/index.html) (open it in a browser, or publish `docs/` with GitHub Pages).
 
@@ -87,7 +87,7 @@ dotnet build -c Release
 
 Perch shows a tray icon (double-click for settings). Stop it before rebuilding: the running exe locks its own output file.
 
-### macOS (untested)
+### macOS (compiles, never run)
 Requires macOS 14+ and Xcode or the Command Line Tools.
 
 ```sh
@@ -163,7 +163,7 @@ Set them under *Settings, Keys*. Defaults on Windows: open/close the island `Ctr
 
 On Windows, features were exercised on windows the tests created themselves, with a Python harness that injects input and captures only the test window's rectangle. Verified that way: input tweaks, cleaning mode, window layouts, the switcher, Alt-drag, screenshot editor, recorder (MP4 and GIF written), and the new settings pages rendered to images. Items that would touch your real apps or devices (uninstalling, winget installs, camera, Bluetooth, mounting images) are built but were not run. [`Perch/PORT-LEDGER.md`](Perch/PORT-LEDGER.md) marks which is which.
 
-The macOS version has not been compiled.
+The macOS version compiles in the `build` workflow on a macOS runner, but nobody has launched it yet.
 
 ---
 
