@@ -21,6 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         Loc.load(); Clip.shared.start(); Media.shared.start(); Stats.shared.start(); KeepAwake.shared.start(); AgentModel.shared.start()
         Island.shared.setup(); Mascot.shared.sync(); Reminders.ask(); registerHotKeys(); Input.refresh()
+        Updater.shared.daily(); Timer.scheduledTimer(withTimeInterval: 6 * 3600, repeats: true) { _ in Task { @MainActor in Updater.shared.daily() } }
         for r in Settings.shared.p.reminders where r.due > Date() { Reminders.schedule(r) }
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         item?.button?.image = NSImage(systemSymbolName: "capsule.fill", accessibilityDescription: "Perch")

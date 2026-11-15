@@ -23,6 +23,7 @@ public partial class SettingsWindow
             case "Alerts": AlertsPage(); break;
             case "More tabs": MoreTabsPage(); break;
             case "Features": FeaturesPage(); break;
+            case "Updates": UpdatesPage(); break;
             case "Language": LanguagePage(); break;
         }
     }
@@ -274,5 +275,24 @@ public partial class SettingsWindow
         _page.Children.Clear();
         foreach (var t in TabBase.All()) { try { _ = t.View; Loc.Seen.Add(t.Name); } catch { } }
         _current = keep; _filter = kf;
+    }
+    string _updMsg = "";
+    void UpdatesPage()
+    {
+        Section("Updates");
+        RowItem("This version", Updater.CurrentText + ". Updates come from the project's GitHub releases.", null);
+        RowItem("Look for updates once a day", "Off by default. The only thing sent is the request for the latest release; nothing about you or this PC.", new Toggle(S.UpdateCheck, v => { S.UpdateCheck = v; S.Save(); }));
+        RowItem("Check now", S.UpdateLastCheck.Length > 0 ? "Last checked " + S.UpdateLastCheck + "." : "Not checked yet.",
+            Pill("Check", async () => { _updMsg = "Checking…"; Render(); _updMsg = await Updater.Check(true); Render(); }, true));
+        if (_updMsg.Length > 0) RowItem(_updMsg, "", null);
+        var info = Updater.Available;
+        if (info != null)
+        {
+            RowItem("Version " + info.Version, info.Notes.Length > 600 ? info.Notes[..600] + "…" : (info.Notes.Length > 0 ? info.Notes : "No release notes."),
+                Row(Pill("Update now", async () => { var r = await Updater.Install(m => { _updMsg = m; Svc.Ui(Render); }); if (r.Length > 0) { _updMsg = r; Render(); } }, true),
+                    Pill("Not this one", () => { S.UpdateSkipped = info.Version; S.Save(); Updater.Check(false).ContinueWith(_ => Svc.Ui(Render)); }).M(6), Pill("Release page", () => Svc.Open(info.Page)).M(6)), true);
+            RowItem("How it works", "Perch downloads the release, checks it against its published checksum, closes, swaps the files, keeps your old version, and starts again. Nothing is replaced if the check fails. If Perch lives in a protected folder like Program Files, run it as administrator once, or update by hand.", null);
+        }
+        RowItem("Go back a version", "Puts the last version Perch kept back in place and restarts.", Pill("Roll back", () => { var r = Updater.Rollback(); if (r.Length > 0) { _updMsg = r; Render(); } }));
     }
 }

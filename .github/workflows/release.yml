@@ -1,0 +1,52 @@
+name: release
+# Push a tag like v1.1.0 and this builds both apps and attaches them, with checksums, to a GitHub release.
+# Perch's updater reads these exact file names: Perch-win-x64.zip, Perch-mac.zip and their .sha256 files.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Publish
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart('v')
+          dotnet publish Perch/Perch.csproj -c Release -r win-x64 --self-contained true -p:Version=$v -o out
+          Compress-Archive -Path out/* -DestinationPath Perch-win-x64.zip
+          $h = (Get-FileHash Perch-win-x64.zip -Algorithm SHA256).Hash.ToLower()
+          "$h  Perch-win-x64.zip" | Out-File -Encoding ascii Perch-win-x64.zip.sha256
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Perch-win-x64.zip
+            Perch-win-x64.zip.sha256
+          generate_release_notes: true
+  mac:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        working-directory: PerchMac
+        env:
+          PERCH_VERSION: ${{ github.ref_name }}
+        run: |
+          export PERCH_VERSION="${PERCH_VERSION#v}"
+          ./build.sh
+          ditto -c -k --keepParent Perch.app ../Perch-mac.zip
+      - name: Checksum
+        run: shasum -a 256 Perch-mac.zip > Perch-mac.zip.sha256
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Perch-mac.zip
+            Perch-mac.zip.sha256
+          generate_release_notes: true

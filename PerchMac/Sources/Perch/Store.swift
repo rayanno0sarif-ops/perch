@@ -65,6 +65,7 @@ struct Prefs: Codable {
     var reminders: [Reminder] = []
     var notes = ""
     var launchAtLogin = false
+    var updateCheck = false, updateLast = "", updateSkipped = ""
 
     static let defaultHotkeys: [String: String] = [
         "toggle": "ctrl+opt+i", "commandbar": "ctrl+opt+k", "radial": "ctrl+opt+r", "screenshot": "ctrl+opt+s", "record": "ctrl+opt+v",

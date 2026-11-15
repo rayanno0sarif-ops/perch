@@ -16,7 +16,7 @@ import ServiceManagement
 struct SettingsRoot: View {
     @ObservedObject var s = Settings.shared
     @State private var page = "General"
-    static let pages: [(String, String)] = [("General", "gearshape"), ("Appearance", "paintbrush"), ("Panels", "square.grid.2x2"), ("Input", "computermouse"), ("Windows", "macwindow"), ("Keys", "keyboard"), ("Clipboard", "doc.on.clipboard"), ("Capture", "camera"), ("Energy", "bolt"), ("Alerts", "bell"), ("More tabs", "square.stack"), ("Assistant", "sparkles"), ("Language", "globe"), ("About", "info.circle")]
+    static let pages: [(String, String)] = [("General", "gearshape"), ("Appearance", "paintbrush"), ("Panels", "square.grid.2x2"), ("Input", "computermouse"), ("Windows", "macwindow"), ("Keys", "keyboard"), ("Clipboard", "doc.on.clipboard"), ("Capture", "camera"), ("Energy", "bolt"), ("Alerts", "bell"), ("More tabs", "square.stack"), ("Assistant", "sparkles"), ("Language", "globe"), ("Updates", "arrow.down.circle"), ("About", "info.circle")]
     var body: some View {
         NavigationSplitView {
             List(Self.pages, id: \.0, selection: Binding(get: { page }, set: { page = $0 ?? "General" })) { p in Label(L(p.0), systemImage: p.1).tag(p.0) }.navigationSplitViewColumnWidth(min: 170, ideal: 190)
@@ -180,6 +180,7 @@ struct PageBody: View {
             Section_("Language")
             Row("Show Perch in", "Perch's words are English. Pick another language and the assistant translates the words the screens use into a file on this Mac. Only interface words are sent.") { Picker("", selection: $s.p.language) { ForEach(Loc.languages, id: \.self) { Text($0).tag($0) } }.frame(width: 190).onChange(of: s.p.language) { _, _ in Loc.load() } }
             if s.p.language != "English" { Row("Translate", Loc.map.isEmpty ? "Nothing translated yet. Visit a few pages first so their words are known." : "\(Loc.map.count) phrases.") { Pill("Translate now", primary: true) { Task { let r = await Loc.translate(Array(Loc.seen)) { status = $0 }; status = r.isEmpty ? "Done. Reopen Perch to see it everywhere." : r } } }; Text(status).font(.caption) }
+        case "Updates": UpdatesPage()
         default:
             Section_("About")
             Row("Perch for Mac 1.0", "An original notch for macOS. Written from the Windows version; not affiliated with any other app.") { EmptyView() }

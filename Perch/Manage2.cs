@@ -346,7 +346,7 @@ public static class Scheduled
     static readonly HashSet<string> _low = new(); static int _n; static bool _busy; static readonly HashSet<string> _drives = new(); static bool _drivesInit;
     public static void Tick(Settings s)
     {
-        _n++; Tools2.MusicTick(); MonitorAlerts.Tick(s);
+        _n++; Tools2.MusicTick(); MonitorAlerts.Tick(s); if (_n % 3600 == 11) Updater.Daily();
         if (s.AccessoryAlerts && _n % 600 == 5) Task.Run(() => { foreach (var d in ManageTab.ReadDevices().Where(d => d.State == "connected" && d.Battery >= 0)) { if (d.Battery <= 20 && _low.Add(d.Name)) Svc.Ui(() => Svc.Notices.Add("Low battery: " + d.Name, d.Battery + "% left.", "\uE850")); else if (d.Battery > 25) _low.Remove(d.Name); } });
         try
         {

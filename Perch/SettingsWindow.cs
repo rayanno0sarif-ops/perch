@@ -24,7 +24,7 @@ public partial class SettingsWindow : Window
     static readonly (string Name, string Glyph)[] Pages =
     {
         ("General", ""), ("Accessibility", "\uE7B3"), ("Appearance", ""), ("Island", ""), ("Panels", ""),
-        ("Widgets", ""), ("Assistant", ""), ("Calls", "\uE720"), ("Gaming", "\uE7FC"), ("Tools", "\uE90F"), ("Windows", "\uE8A7"), ("Utilities", "\uE90F"), ("Capture", "\uE722"), ("Display", "\uE7F4"), ("Alerts", "\uEA8F"), ("More tabs", "\uE8F1"), ("Features", "\uE713"), ("Language", "\uE774"), ("Input", "\uE765"), ("System", "\uE950"), ("Keys", ""), ("About", "")
+        ("Widgets", ""), ("Assistant", ""), ("Calls", "\uE720"), ("Gaming", "\uE7FC"), ("Tools", "\uE90F"), ("Windows", "\uE8A7"), ("Utilities", "\uE90F"), ("Capture", "\uE722"), ("Display", "\uE7F4"), ("Alerts", "\uEA8F"), ("More tabs", "\uE8F1"), ("Features", "\uE713"), ("Language", "\uE774"), ("Updates", "\uE777"), ("Input", "\uE765"), ("System", "\uE950"), ("Keys", ""), ("About", "")
     };
     Border _frame;
     readonly StackPanel _nav = new();

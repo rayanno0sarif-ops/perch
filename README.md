@@ -17,6 +17,7 @@ Landing page: [`docs/index.html`](docs/index.html) (open it in a browser, or pub
 
 - [What it does](#what-it-does)
 - [Install and build](#install-and-build)
+- [Updates](#updates)
 - [Everything is off until you switch it on](#everything-is-off-until-you-switch-it-on)
 - [Privacy](#privacy)
 - [Shortcuts](#shortcuts)
@@ -96,6 +97,19 @@ open Perch.app
 ```
 
 Grant Accessibility, Screen Recording, Camera, Calendars and Notifications as features ask. See [`PerchMac/README.md`](PerchMac/README.md).
+
+---
+
+## Updates
+
+Both apps can update themselves from this repo's GitHub releases. It is **off by default** (*Settings, Updates*): switch on "Look for updates once a day", or press *Check now*.
+
+- Only the request for the latest release is sent. Nothing about you or your computer.
+- *Update now* downloads the release, checks it against the checksum published beside it, closes Perch, swaps the files, keeps your old version, and starts again. If the checksum does not match, nothing is replaced.
+- *Roll back* puts the kept version back.
+- If Perch is installed in a protected folder (Program Files), run it as administrator once or update by hand.
+
+Publishing a release: push a tag, for example `git tag v1.1.0 && git push origin v1.1.0`. The `release` workflow builds `Perch-win-x64.zip` and `Perch-mac.zip` with `.sha256` files and attaches them. The updater looks for exactly those names. The `build` workflow compiles both apps on every push, which is also the first real compile of the Mac version.
 
 ---
 
