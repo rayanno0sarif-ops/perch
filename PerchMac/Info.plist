@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleName</key><string>Perch</string>
+<key>CFBundleIdentifier</key><string>app.perch.mac</string>
+<key>CFBundleExecutable</key><string>Perch</string>
+<key>CFBundleVersion</key><string>1.0</string>
+<key>CFBundleShortVersionString</key><string>1.0</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>LSMinimumSystemVersion</key><string>14.0</string>
+<key>LSUIElement</key><true/>
+<key>NSCameraUsageDescription</key><string>Shows your camera in the mirror window. Nothing is recorded.</string>
+<key>NSMicrophoneUsageDescription</key><string>Used by the microphone mute and screen recordings.</string>
+<key>NSCalendarsFullAccessUsageDescription</key><string>Shows your upcoming appointments in the Calendar tab.</string>
+<key>NSAppleEventsUsageDescription</key><string>Controls Music and Spotify, and empties the Trash.</string>
+<key>NSScreenCaptureUsageDescription</key><string>Captures the screen for screenshots, text reading and Watch.</string>
+</dict></plist>

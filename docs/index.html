@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perch: a notch for your screen</title>
+<meta name="description" content="Perch is a glass pill at the top of your screen: music, clipboard, shelf, screenshots, a window switcher and dozens of small utilities. Off until you switch it on. Private by default.">
+<style>
+:root{--bg:#0b0b0d;--ink:#f5f5f7;--dim:#9a9aa3;--line:rgba(255,255,255,.1);--card:rgba(255,255,255,.06);--accent:#8ab4ff}
+@media (prefers-color-scheme:light){:root{--bg:#f4f4f6;--ink:#17171a;--dim:#62626b;--line:rgba(0,0,0,.1);--card:rgba(0,0,0,.04);--accent:#2a5bd7}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 ui-sans-serif,-apple-system,"Segoe UI Variable","Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+nav{display:flex;justify-content:space-between;align-items:center;padding:20px 0}
+nav b{letter-spacing:.02em}nav div a{margin-left:22px;text-decoration:none;color:var(--dim);font-size:14px}nav div a:hover{color:var(--ink)}
+.hero{text-align:center;padding:56px 0 40px;position:relative}
+.glow{position:absolute;inset:-10% 10% auto;height:360px;background:radial-gradient(closest-side,rgba(138,180,255,.25),transparent);filter:blur(30px);z-index:-1}
+h1{font-size:clamp(38px,7vw,72px);line-height:1.04;letter-spacing:-.035em;margin:26px 0 14px;font-weight:700}
+.lead{max-width:600px;margin:0 auto 28px;color:var(--dim);font-size:18px}
+.btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-block;padding:11px 20px;border-radius:999px;text-decoration:none;font-weight:600;font-size:15px;border:1px solid var(--line);background:var(--card)}
+.btn.p{background:var(--ink);color:var(--bg);border-color:transparent}
+/* the pill */
+.stage{height:210px;display:flex;justify-content:center;align-items:flex-start;margin-top:10px}
+.island{position:relative;width:230px;height:42px;border-radius:24px;background:linear-gradient(#26262b,#141417);border:1px solid rgba(255,255,255,.14);box-shadow:0 18px 50px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.12);overflow:hidden;animation:open 9s cubic-bezier(.3,.8,.2,1) infinite;color:#fff;text-align:left}
+.island .row{display:flex;align-items:center;gap:10px;padding:0 14px;height:42px;font-size:13px;font-weight:600;white-space:nowrap}
+.cover{width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,#ff7e5f,#8a4dff)}
+.bars{margin-left:auto;display:flex;gap:2px;align-items:flex-end;height:16px}.bars i{width:3px;background:#fff;border-radius:2px;animation:b .8s ease-in-out infinite alternate}.bars i:nth-child(2){animation-delay:.2s}.bars i:nth-child(3){animation-delay:.4s}.bars i:nth-child(4){animation-delay:.1s}
+@keyframes b{from{height:4px}to{height:16px}}
+.tabs{display:flex;gap:6px;justify-content:center;padding:6px 0 10px;opacity:0;animation:fade 9s infinite}
+.tabs span{width:22px;height:22px;border-radius:7px;background:rgba(255,255,255,.1)}.tabs span:first-child{background:#fff}
+.body{display:flex;gap:14px;padding:6px 22px;opacity:0;animation:fade 9s infinite}
+.body .big{width:92px;height:92px;border-radius:16px;background:linear-gradient(135deg,#ff7e5f,#8a4dff)}
+.body .t{padding-top:6px}.body .t b{display:block;font-size:15px}.body .t small{color:#9a9aa3}
+.bar{height:4px;border-radius:2px;background:rgba(255,255,255,.18);margin:12px 0}.bar::after{content:"";display:block;width:42%;height:100%;border-radius:2px;background:#fff}
+@keyframes open{0%,12%{width:230px;height:42px}22%,78%{width:430px;height:200px}90%,100%{width:230px;height:42px}}
+@keyframes fade{0%,20%{opacity:0}30%,72%{opacity:1}80%,100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.island,.tabs,.body,.bars i{animation:none}.island{width:430px;height:200px}.tabs,.body{opacity:1}.row{display:none}}
+section{padding:64px 0;border-top:1px solid var(--line)}
+h2{font-size:clamp(26px,4vw,38px);letter-spacing:-.025em;margin:0 0 10px}
+.sub{color:var(--dim);max-width:640px;margin:0 0 30px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.card{padding:18px;border-radius:18px;background:var(--card);border:1px solid var(--line)}
+.card h3{margin:0 0 6px;font-size:16px}.card p{margin:0;color:var(--dim);font-size:14px}
+.tag{display:inline-block;font:11px ui-monospace,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}
+@media (max-width:760px){.two{grid-template-columns:1fr}nav div a:nth-child(n+3){display:none}}
+ul.check{list-style:none;padding:0;margin:0}ul.check li{padding:8px 0 8px 28px;position:relative;border-bottom:1px solid var(--line);color:var(--dim)}
+ul.check li::before{content:"";position:absolute;left:0;top:15px;width:12px;height:7px;border-left:2px solid var(--accent);border-bottom:2px solid var(--accent);transform:rotate(-45deg)}
+ul.check b{color:var(--ink)}
+code,pre{font:13px ui-monospace,Consolas,monospace}pre{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;overflow:auto;margin:10px 0}
+.pill{display:inline-block;padding:3px 10px;border-radius:999px;border:1px solid var(--line);font-size:12px;color:var(--dim);margin-right:6px}
+footer{padding:40px 0;color:var(--dim);font-size:13px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav><b>Perch</b><div><a href="#features">Features</a><a href="#control">Control</a><a href="#privacy">Privacy</a><a href="#get">Get it</a></div></nav>
+
+<header class="hero">
+  <div class="glow"></div>
+  <span class="pill">Windows · macOS (untested)</span>
+  <h1>A notch for<br>your screen.</h1>
+  <p class="lead">One glass pill at the top: music, clipboard, a file shelf, screenshots, a window switcher and dozens of small tools. Nothing runs until you switch it on.</p>
+  <div class="btns"><a class="btn p" href="#get">Build it</a><a class="btn" href="#features">See what it does</a></div>
+  <div class="stage" aria-hidden="true">
+    <div class="island">
+      <div class="row"><div class="cover"></div>Blue Hour<div class="bars"><i></i><i></i><i></i><i></i></div></div>
+      <div class="tabs"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      <div class="body"><div class="big"></div><div class="t"><b>Blue Hour</b><small>Someone Good</small><div class="bar"></div></div></div>
+    </div>
+  </div>
+</header>
+
+<section id="features">
+  <span class="tag">What it does</span>
+  <h2>Everything you reach for, in one place.</h2>
+  <p class="sub">Rest the pointer on the pill and it opens into tabs. Drag it anywhere, lock it, or let it thin out over maximised windows.</p>
+  <div class="grid">
+    <div class="card"><h3>Music</h3><p>Cover, controls, seek and volume for any player, plus synced lyrics.</p></div>
+    <div class="card"><h3>Clipboard</h3><p>Search, pin, keep between sessions encrypted, skip anything that looks like a password.</p></div>
+    <div class="card"><h3>Shelf</h3><p>Park files between apps, then drag them out again.</p></div>
+    <div class="card"><h3>Screenshots</h3><p>Frozen-screen capture, an editor with arrows, blur and backgrounds, pins, and scrolling capture.</p></div>
+    <div class="card"><h3>Recorder</h3><p>Record an area with sound and microphone, trim, and save MP4 or GIF.</p></div>
+    <div class="card"><h3>Window switcher</h3><p>Alt+Tab with live previews and search. Layouts, thirds, sixths, gaps, Alt-drag to move.</p></div>
+    <div class="card"><h3>Utilities</h3><p>Keep awake, colour picker, text and QR from the screen, calculator, dark mode, quit others.</p></div>
+    <div class="card"><h3>Manage</h3><p>Uninstall with leftovers, devices, winget, cleaner with a schedule, processes, wallpaper.</p></div>
+    <div class="card"><h3>Timer &amp; Calendar</h3><p>Pomodoro, stopwatch, a month view from your calendars and .ics files.</p></div>
+    <div class="card"><h3>Watch</h3><p>Pick part of the screen and get told when it changes or shows what you wait for.</p></div>
+    <div class="card"><h3>AI agents</h3><p>Token and cost usage of Claude Code and Codex, read from files already on your PC.</p></div>
+    <div class="card"><h3>Assistant</h3><p>Chat with Claude using your own key, and have it write extensions you review first.</p></div>
+  </div>
+</section>
+
+<section id="control">
+  <div class="two">
+    <div>
+      <span class="tag">In control</span>
+      <h2>Off until you switch it on.</h2>
+      <p class="sub">The keyboard and mouse hooks are the part of an app like this that deserves suspicion, so they are strict.</p>
+    </div>
+    <ul class="check">
+      <li><b>Nothing is hooked</b> on a fresh install. Hooks start only when a tweak needs them and stop when the last one is off.</li>
+      <li><b>Games are left alone.</b> The mouse hook steps aside while a full-screen game is in front.</li>
+      <li><b>One screen tells you</b> whether the mouse or keyboard is being watched right now.</li>
+      <li><b>Bundles</b> set Perch up in a click: Essentials, Windows, Battery and quiet, Everything.</li>
+      <li><b>Updates never grow it.</b> New tabs start hidden.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="privacy">
+  <span class="tag">Privacy</span>
+  <h2>Local first. No account, no telemetry.</h2>
+  <p class="sub">The network is touched only by things you can see.</p>
+  <div class="grid">
+    <div class="card"><h3>Stays on your PC</h3><p>Settings, clipboard history (encrypted if kept), screenshots, recordings.</p></div>
+    <div class="card"><h3>Only when you ask</h3><p>Weather, the speed test, winget, lyrics lookup, the assistant, translation and .ics links.</p></div>
+    <div class="card"><h3>Read-only agents</h3><p>Usage comes from session files only: dates, models, projects and token counts, never prompts or replies.</p></div>
+    <div class="card"><h3>Careful with deletes</h3><p>Leftovers, cleaner and download cleanup go to the Recycle Bin or ask first.</p></div>
+  </div>
+</section>
+
+<section id="get">
+  <span class="tag">Get it</span>
+  <h2>Build it yourself.</h2>
+  <p class="sub">There is no installer yet. Windows needs the .NET 10 SDK.</p>
+  <div class="two">
+    <div><h3>Windows</h3>
+<pre>cd Perch
+dotnet build -c Release
+.\bin\Release\net10.0-windows10.0.19041.0\Perch.exe</pre></div>
+    <div><h3>macOS <span class="pill">untested</span></h3>
+<pre>cd PerchMac
+./build.sh
+open Perch.app</pre>
+    <p class="sub" style="margin:0">The Mac version was written without a Mac or a Swift compiler. It has never been built; expect fixes.</p></div>
+  </div>
+</section>
+
+<footer>
+  Perch is an original app, inspired by NotchPixel and by vorssaint-utils, with code from neither. See the README for how it is organised, what was tested, and what is not built.
+</footer>
+</div>
+</body>
+</html>
