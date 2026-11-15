@@ -260,28 +260,83 @@ struct AgentUse { let at: Date; let agent: String; let model: String; let projec
         wasWorking = w
     }
 }
+struct AgentGroup: Identifiable { let id: String; let tokens: Int; let value: Double }
+
 struct AgentsTab: View {
     @ObservedObject var a = AgentModel.shared
     @State private var period = 1
-    var body: some View {
-        let from = Calendar.current.date(byAdding: .day, value: period == 0 ? 0 : period == 1 ? -6 : -29, to: Calendar.current.startOfDay(for: Date()))!; let rows = a.uses.filter { $0.at >= from }
-        let k: (Int) -> String = { n in n >= 1_000_000 ? String(format: "%.1fM", Double(n) / 1e6) : n >= 1000 ? String(format: "%.1fK", Double(n) / 1e3) : "\(n)" }
-        ScrollView { VStack(alignment: .leading, spacing: 8) {
-            HStack { ForEach(Array(["Today", "7 days", "30 days"].enumerated()), id: \.offset) { i, t in Button { period = i } label: { Text(L(t)).font(.system(size: 11, weight: .semibold)).foregroundStyle(period == i ? .black : .white).padding(.horizontal, 10).padding(.vertical, 5).background(Capsule().fill(period == i ? Color.white : Look.card)) }.buttonStyle(.plain) }; Pill("Refresh") { Task { await a.refresh() } } }
-            if !a.found("Claude") && !a.found("Codex") { Text(L("No usage from Claude Code or Codex yet. It appears here as soon as either works on this Mac.")).font(.system(size: 11.5)).foregroundStyle(Look.dim) }
-            else if !a.loaded { Text(L("Reading usage…")).font(.system(size: 11.5)).foregroundStyle(Look.dim) }
-            else {
-                HStack { stat(k(rows.reduce(0) { $0 + $1.total }), "tokens"); stat(String(format: "$%.2f", rows.reduce(0) { $0 + $1.value }), "API value (estimate)"); let t = rows.reduce(0) { $0 + $1.total }; stat(t == 0 ? "0%" : "\(rows.reduce(0) { $0 + $1.cacheRead } * 100 / t)%", "from cache") }
-                if Settings.shared.p.agentsDailyBudget > 0 && period == 0 { Text(String(format: "Budget: $%.2f left", max(0, Settings.shared.p.agentsDailyBudget - rows.reduce(0) { $0 + $1.value }))).font(.system(size: 11)).foregroundStyle(Look.dim) }
-                Text(a.working.isEmpty ? L("No agent working right now") : L("Working now: ") + a.working).font(.system(size: 11)).foregroundStyle(a.working.isEmpty ? Look.dim : .green)
-                Text("MODELS").font(.system(size: 9.5, design: .monospaced)).foregroundStyle(Look.dim)
-                ForEach(Dictionary(grouping: rows, by: \.model).sorted { $0.value.reduce(0) { $0 + $1.total } > $1.value.reduce(0) { $0 + $1.total } }.prefix(4), id: \.key) { g in HStack { Text(g.key.isEmpty ? "unknown" : g.key).font(.system(size: 11.5)); Spacer(); Text(k(g.value.reduce(0) { $0 + $1.total })).font(.system(size: 11, design: .monospaced)); Text(String(format: "$%.2f", g.value.reduce(0) { $0 + $1.value })).font(.system(size: 11, design: .monospaced)).foregroundStyle(Look.dim) } }
-                Text("PROJECTS").font(.system(size: 9.5, design: .monospaced)).foregroundStyle(Look.dim)
-                ForEach(Dictionary(grouping: rows, by: \.project).sorted { $0.value.reduce(0) { $0 + $1.total } > $1.value.reduce(0) { $0 + $1.total } }.prefix(4), id: \.key) { g in HStack { Text(g.key.isEmpty ? "unknown" : g.key).font(.system(size: 11.5)); Spacer(); Text(k(g.value.reduce(0) { $0 + $1.total })).font(.system(size: 11, design: .monospaced)) } }
-            }
-        }.padding(.horizontal, 16) }.task { await a.refresh() }
+
+    private var rows: [AgentUse] {
+        let days = period == 0 ? 0 : (period == 1 ? -6 : -29)
+        let from = Calendar.current.date(byAdding: .day, value: days, to: Calendar.current.startOfDay(for: Date())) ?? Date()
+        return a.uses.filter { $0.at >= from }
     }
-    func stat(_ v: String, _ l: String) -> some View { VStack(alignment: .leading) { Text(v).font(.system(size: 19, weight: .semibold)); Text(L(l)).font(.system(size: 10)).foregroundStyle(Look.dim) }.frame(maxWidth: .infinity, alignment: .leading) }
+    private func k(_ n: Int) -> String {
+        if n >= 1_000_000 { return String(format: "%.1fM", Double(n) / 1e6) }
+        if n >= 1000 { return String(format: "%.1fK", Double(n) / 1e3) }
+        return "\(n)"
+    }
+    private func groups(_ rows: [AgentUse], by key: (AgentUse) -> String) -> [AgentGroup] {
+        var tokens: [String: Int] = [:]; var value: [String: Double] = [:]
+        for r in rows { let g = key(r).isEmpty ? "unknown" : key(r); tokens[g, default: 0] += r.total; value[g, default: 0] += r.value }
+        let all = tokens.keys.map { AgentGroup(id: $0, tokens: tokens[$0] ?? 0, value: value[$0] ?? 0) }
+        return Array(all.sorted { $0.tokens > $1.tokens }.prefix(4))
+    }
+    private func stat(_ v: String, _ l: String) -> some View {
+        VStack(alignment: .leading) { Text(v).font(.system(size: 19, weight: .semibold)); Text(L(l)).font(.system(size: 10)).foregroundStyle(Look.dim) }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+    private func groupRows(_ list: [AgentGroup]) -> some View {
+        ForEach(list) { g in
+            HStack {
+                Text(g.id).font(.system(size: 11.5)); Spacer()
+                Text(k(g.tokens)).font(.system(size: 11, design: .monospaced))
+                Text(String(format: "$%.2f", g.value)).font(.system(size: 11, design: .monospaced)).foregroundStyle(Look.dim)
+            }
+        }
+    }
+    private var periodChips: some View {
+        HStack {
+            ForEach(0..<3, id: \.self) { i in
+                Button { period = i } label: {
+                    Text(L(["Today", "7 days", "30 days"][i])).font(.system(size: 11, weight: .semibold)).foregroundStyle(period == i ? Color.black : Color.white)
+                        .padding(.horizontal, 10).padding(.vertical, 5).background(Capsule().fill(period == i ? Color.white : Look.card))
+                }.buttonStyle(.plain)
+            }
+            Pill("Refresh") { Task { await a.refresh() } }
+        }
+    }
+    @ViewBuilder private var summary: some View {
+        let r = rows
+        let tokens = r.reduce(0) { $0 + $1.total }
+        let cached = r.reduce(0) { $0 + $1.cacheRead }
+        let value = r.reduce(0.0) { $0 + $1.value }
+        HStack {
+            stat(k(tokens), "tokens")
+            stat(String(format: "$%.2f", value), "API value (estimate)")
+            stat(tokens == 0 ? "0%" : "\(cached * 100 / tokens)%", "from cache")
+        }
+        let budget = Settings.shared.p.agentsDailyBudget
+        if budget > 0 && period == 0 { Text(String(format: "Budget: $%.2f left", max(0, budget - value))).font(.system(size: 11)).foregroundStyle(Look.dim) }
+        Text(a.working.isEmpty ? L("No agent working right now") : L("Working now: ") + a.working).font(.system(size: 11)).foregroundStyle(a.working.isEmpty ? Look.dim : Color.green)
+        Text("MODELS").font(.system(size: 9.5, design: .monospaced)).foregroundStyle(Look.dim)
+        groupRows(groups(r) { $0.model })
+        Text("PROJECTS").font(.system(size: 9.5, design: .monospaced)).foregroundStyle(Look.dim)
+        groupRows(groups(r) { $0.project })
+    }
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 8) {
+                periodChips
+                if !a.found("Claude") && !a.found("Codex") {
+                    Text(L("No usage from Claude Code or Codex yet. It appears here as soon as either works on this Mac.")).font(.system(size: 11.5)).foregroundStyle(Look.dim)
+                } else if !a.loaded {
+                    Text(L("Reading usage…")).font(.system(size: 11.5)).foregroundStyle(Look.dim)
+                } else {
+                    summary
+                }
+            }.padding(.horizontal, 16)
+        }.task { await a.refresh() }
+    }
 }
 
 // MARK: - Assistant
