@@ -31,7 +31,8 @@ struct Empty: View {
 
 struct SitesTab: View {
     @ObservedObject var s = Settings.shared
-    @State private var name = "", url = ""
+    @State private var name = ""
+    @State private var url = ""
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ScrollView { LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 3), spacing: 6) {
@@ -95,7 +96,8 @@ struct ClipTab: View {
 // MARK: - Widgets
 
 struct WidgetsTab: View {
-    @ObservedObject var st = Stats.shared, w = Weather.shared
+    @ObservedObject var st = Stats.shared
+    @ObservedObject var w = Weather.shared
     var body: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
@@ -116,7 +118,8 @@ struct Meter: View {
 // MARK: - Controls
 
 struct ControlsTab: View {
-    @State private var vol: Double = Double(Audio.volume()); @State private var bright: Double = 1
+    @State private var vol: Double = Double(Audio.volume())
+    @State private var bright: Double = 1
     @ObservedObject var b = Brightness.shared
     var body: some View {
         VStack(spacing: 10) {
@@ -217,7 +220,8 @@ struct NotesTab: View {
 }
 struct RemindersTab: View {
     @ObservedObject var s = Settings.shared
-    @State private var title = "", when = Date().addingTimeInterval(600)
+    @State private var title = ""
+    @State private var when = Date().addingTimeInterval(600)
     var body: some View {
         VStack(spacing: 8) {
             HStack { TextField(L("Remind me to…"), text: $title).textFieldStyle(.roundedBorder); DatePicker("", selection: $when).labelsHidden().frame(width: 180)
@@ -239,7 +243,8 @@ enum Reminders {
 // MARK: - System: ports, speed test, updates
 
 struct SystemTab: View {
-    @State private var page = "Ports"; @State private var ports: [(String, String, String)] = []; @State private var speed = "Press Run to measure your connection."; @State private var updates = "Looking for updates…"
+    @State private var page = "Ports"
+    @State private var ports: [(String, String, String)] = []; @State private var speed = "Press Run to measure your connection."; @State private var updates = "Looking for updates…"
     var body: some View {
         VStack(spacing: 8) {
             HStack { ForEach(["Ports", "Speed", "Updates", "Drives"], id: \.self) { p in Button { page = p; load() } label: { Text(L(p)).font(.system(size: 11, weight: .semibold)).foregroundStyle(page == p ? .black : .white).padding(.horizontal, 10).padding(.vertical, 5).background(Capsule().fill(page == p ? Color.white : Look.card)) }.buttonStyle(.plain) }; Spacer() }

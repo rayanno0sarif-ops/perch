@@ -92,7 +92,8 @@ import CryptoKit
 }
 
 struct UpdatesPage: View {
-    @ObservedObject var u = Updater.shared; @ObservedObject var s = Settings.shared
+    @ObservedObject var u = Updater.shared
+    @ObservedObject var s = Settings.shared
     var body: some View {
         Section_("Updates")
         Row("This version", "\(u.current). Updates come from the project's GitHub releases.") { EmptyView() }

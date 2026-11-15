@@ -199,8 +199,8 @@ enum Input {
 // MARK: - Window layout through the Accessibility API
 
 @MainActor enum WindowLayout {
-    static func position(_ w: AXUIElement) -> CGPoint? { var v: AnyObject?; guard AXUIElementCopyAttributeValue(w, kAXPositionAttribute as CFString, &v) == .success else { return nil }; var p = CGPoint.zero; AXValueGetValue(v as! AXValue, .cgPoint, &p); return p }
-    static func size(_ w: AXUIElement) -> CGSize? { var v: AnyObject?; guard AXUIElementCopyAttributeValue(w, kAXSizeAttribute as CFString, &v) == .success else { return nil }; var s = CGSize.zero; AXValueGetValue(v as! AXValue, .cgSize, &s); return s }
+    nonisolated static func position(_ w: AXUIElement) -> CGPoint? { var v: AnyObject?; guard AXUIElementCopyAttributeValue(w, kAXPositionAttribute as CFString, &v) == .success else { return nil }; var p = CGPoint.zero; AXValueGetValue(v as! AXValue, .cgPoint, &p); return p }
+    nonisolated static func size(_ w: AXUIElement) -> CGSize? { var v: AnyObject?; guard AXUIElementCopyAttributeValue(w, kAXSizeAttribute as CFString, &v) == .success else { return nil }; var s = CGSize.zero; AXValueGetValue(v as! AXValue, .cgSize, &s); return s }
     nonisolated static func set(_ w: AXUIElement, position: CGPoint) { var p = position; if let v = AXValueCreate(.cgPoint, &p) { AXUIElementSetAttributeValue(w, kAXPositionAttribute as CFString, v) } }
     nonisolated static func set(_ w: AXUIElement, size: CGSize) { var s = size; if let v = AXValueCreate(.cgSize, &s) { AXUIElementSetAttributeValue(w, kAXSizeAttribute as CFString, v) } }
     static var saved: [pid_t: (CGPoint, CGSize)] = [:]
@@ -248,7 +248,8 @@ struct WinItem: Identifiable { let id: CGWindowID; let pid: pid_t; let app: Stri
 
 @MainActor final class Switcher: ObservableObject {
     static let shared = Switcher()
-    @Published var items: [WinItem] = []; @Published var sel = 0; @Published var query = ""
+    @Published var items: [WinItem] = []
+    @Published var sel = 0; @Published var query = ""
     var panel: IslandPanel?
     var filtered: [WinItem] { query.isEmpty ? items : items.filter { ($0.app + " " + $0.title).localizedCaseInsensitiveContains(query) } }
     func toggle() { if panel != nil { close() } else { open() } }
@@ -299,7 +300,8 @@ struct Thumb: View {
 struct PickItem: Identifiable { let id = UUID(); let title: String; let sub: String; let symbol: String; let run: () -> Void }
 
 @MainActor final class Palette: ObservableObject {
-    @Published var q = "" { didSet { sel = 0 } }; @Published var sel = 0; @Published var digits = false; var source: (String) -> [PickItem] = { _ in [] }; var placeholder = ""; var footer = ""
+    @Published var q = "" { didSet { sel = 0 } }
+    @Published var sel = 0; @Published var digits = false; var source: (String) -> [PickItem] = { _ in [] }; var placeholder = ""; var footer = ""
     var items: [PickItem] { source(q) }
     var panel: IslandPanel?
     func show(placeholder: String, footer: String, digits: Bool = false, source: @escaping (String) -> [PickItem]) {

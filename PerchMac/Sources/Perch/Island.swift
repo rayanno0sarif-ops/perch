@@ -15,7 +15,8 @@ struct TabInfo: Identifiable { let id: String; let name: String; let symbol: Str
     @Published var expanded = false
     @Published var pinned = false
     @Published var tab = "music"
-    @Published var flashSymbol = "", flashText = ""
+    @Published var flashSymbol = ""
+    @Published var flashText = ""
     var panel: IslandPanel!
     private var closeWork: DispatchWorkItem?, openWork: DispatchWorkItem?, flashWork: DispatchWorkItem?
     private var userHidden = false
@@ -101,7 +102,7 @@ struct TabInfo: Identifiable { let id: String; let name: String; let symbol: Str
 
 // MARK: - Look
 
-enum Look {
+@MainActor enum Look {
     static func accent() -> Color { Color(hex: Settings.shared.p.accentHex) }
     static let card = Color.white.opacity(0.10), cardHi = Color.white.opacity(0.2), dim = Color.white.opacity(0.55)
 }
@@ -154,7 +155,12 @@ struct IslandRoot: View {
 }
 
 struct Collapsed: View {
-    @ObservedObject var island = Island.shared, media = Media.shared, notices = Notices.shared, stats = Stats.shared, kw = KeepAwake.shared, timer = Pomodoro.shared
+    @ObservedObject var island = Island.shared
+    @ObservedObject var media = Media.shared
+    @ObservedObject var notices = Notices.shared
+    @ObservedObject var stats = Stats.shared
+    @ObservedObject var kw = KeepAwake.shared
+    @ObservedObject var timer = Pomodoro.shared
     var body: some View {
         HStack(spacing: 8) {
             if !island.flashText.isEmpty { Image(systemName: island.flashSymbol).font(.system(size: 12)); Text(island.flashText).font(.system(size: 11.5, weight: .semibold)).lineLimit(1) }
@@ -175,7 +181,8 @@ struct Bars: View {
 }
 
 struct Expanded: View {
-    @ObservedObject var island = Island.shared, settings = Settings.shared
+    @ObservedObject var island = Island.shared
+    @ObservedObject var settings = Settings.shared
     var body: some View {
         VStack(spacing: 0) {
             let tabs = island.visibleTabs

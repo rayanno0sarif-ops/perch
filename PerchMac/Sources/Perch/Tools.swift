@@ -143,7 +143,8 @@ struct Mark: Identifiable { enum Kind { case arrow, rect, pen, text, number, red
 
 struct EditorView: View {
     let image: NSImage; let file: URL
-    @State private var marks: [Mark] = []; @State private var live: Mark?; @State private var tool: Mark.Kind = .arrow; @State private var colour = Color.red; @State private var count = 1; @State private var backdrop = false; @State private var canvasSize = CGSize(width: 1, height: 1)
+    @State private var marks: [Mark] = []
+    @State private var live: Mark?; @State private var tool: Mark.Kind = .arrow; @State private var colour = Color.red; @State private var count = 1; @State private var backdrop = false; @State private var canvasSize = CGSize(width: 1, height: 1)
     var body: some View {
         VStack(spacing: 8) {
             HStack {

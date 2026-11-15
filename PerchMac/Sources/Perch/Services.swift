@@ -11,10 +11,14 @@ import Carbon.HIToolbox
 
 @MainActor final class Media: ObservableObject {
     static let shared = Media()
-    @Published var title = "", artist = "", album = "", source = ""
+    @Published var title = ""
+    @Published var artist = ""
+    @Published var album = ""
+    @Published var source = ""
     @Published var art: NSImage?
     @Published var playing = false
-    @Published var position = 0.0, duration = 0.0
+    @Published var position = 0.0
+    @Published var duration = 0.0
     var hasSession: Bool { !title.isEmpty }
     private var timer: Timer?
     private typealias InfoFn = @convention(c) (DispatchQueue, @escaping ([String: Any]) -> Void) -> Void
@@ -143,7 +147,13 @@ enum Audio {
 
 @MainActor final class Stats: ObservableObject {
     static let shared = Stats()
-    @Published var cpu = 0.0, mem = 0.0, down = 0.0, up = 0.0, battery = -1, charging = false, diskFree = 0.0
+    @Published var cpu = 0.0
+    @Published var mem = 0.0
+    @Published var down = 0.0
+    @Published var up = 0.0
+    @Published var battery = -1
+    @Published var charging = false
+    @Published var diskFree = 0.0
     private var prevTicks: [UInt32] = [0, 0, 0, 0], prevRx: UInt64 = 0, prevTx: UInt64 = 0, timer: Timer?
     func start() { timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in Task { @MainActor in self.sample() } }; sample() }
     func sample() {
@@ -187,7 +197,9 @@ enum Audio {
 
 @MainActor final class Weather: ObservableObject {
     static let shared = Weather()
-    @Published var temp = "", summary = "", place = ""
+    @Published var temp = ""
+    @Published var summary = ""
+    @Published var place = ""
     func refresh() async {
         var p = Settings.shared.p
         if p.lat == 0 && p.lon == 0, !p.city.isEmpty, let u = URL(string: "https://geocoding-api.open-meteo.com/v1/search?count=1&name=" + (p.city.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")),
@@ -203,7 +215,8 @@ enum Audio {
 
 @MainActor final class KeepAwake: ObservableObject {
     static let shared = KeepAwake()
-    @Published var until: Date?; @Published var on = false
+    @Published var until: Date?
+    @Published var on = false
     private var assertion = IOPMAssertionID(0), ruleOn = false, timer: Timer?
     private var jiggleAt = Date.distantPast
     func start() { timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { _ in Task { @MainActor in self.tick() } } }

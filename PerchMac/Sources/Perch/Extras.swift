@@ -7,7 +7,14 @@ import Vision
 
 @MainActor final class Pomodoro: ObservableObject {
     static let shared = Pomodoro()
-    @Published var mode = "timer", phase = "focus", running = false, left = 600.0, total = 600.0, up = 0.0, session = 1, timerMinutes = 10
+    @Published var mode = "timer"
+    @Published var phase = "focus"
+    @Published var running = false
+    @Published var left = 600.0
+    @Published var total = 600.0
+    @Published var up = 0.0
+    @Published var session = 1
+    @Published var timerMinutes = 10
     private var t: Timer?
     var text: String { let s = Int(mode == "stopwatch" ? up : left); return s >= 3600 ? String(format: "%d:%02d:%02d", s / 3600, s % 3600 / 60, s % 60) : String(format: "%02d:%02d", s / 60, s % 60) }
     func reset() {
@@ -34,7 +41,8 @@ import Vision
     }
 }
 struct TimerTab: View {
-    @ObservedObject var t = Pomodoro.shared; @ObservedObject var s = Settings.shared
+    @ObservedObject var t = Pomodoro.shared
+    @ObservedObject var s = Settings.shared
     var body: some View {
         VStack(spacing: 8) {
             HStack { ForEach(["timer", "stopwatch", "pomodoro"], id: \.self) { m in Button { t.mode = m; t.reset() } label: { Text(L(m.capitalized)).font(.system(size: 11, weight: .semibold)).foregroundStyle(t.mode == m ? .black : .white).padding(.horizontal, 11).padding(.vertical, 5).background(Capsule().fill(t.mode == m ? Color.white : Look.card)) }.buttonStyle(.plain) } }
@@ -77,7 +85,8 @@ struct TimerTab: View {
 }
 struct CalendarTab: View {
     @ObservedObject var cal = CalendarStore.shared
-    @State private var month = Calendar.current.date(from: Calendar.current.dateComponents([.year, .month], from: Date()))!; @State private var day = Date()
+    @State private var month = Calendar.current.date(from: Calendar.current.dateComponents([.year, .month], from: Date()))!
+    @State private var day = Date()
     var body: some View {
         let c = Calendar.current; let days = c.range(of: .day, in: .month, for: month)!; let first = c.component(.weekday, from: month) - c.firstWeekday; let off = (first + 7) % 7
         VStack(spacing: 6) {
@@ -98,7 +107,8 @@ struct CalendarTab: View {
 
 @MainActor final class LyricsModel: ObservableObject {
     static let shared = LyricsModel()
-    @Published var lines: [(Double, String)] = []; @Published var plain = ""; @Published var message = ""; var key = ""
+    @Published var lines: [(Double, String)] = []
+    @Published var plain = ""; @Published var message = ""; var key = ""
     func load() async {
         let m = Media.shared; guard m.hasSession else { message = "Play a song to see its lyrics."; return }
         guard Settings.shared.p.lyricsOnline else { message = "Finding lyrics sends the song, artist and length to lrclib.net. Turn it on in Settings."; return }
@@ -115,7 +125,8 @@ struct CalendarTab: View {
     }
 }
 struct LyricsTab: View {
-    @ObservedObject var m = Media.shared, l = LyricsModel.shared
+    @ObservedObject var m = Media.shared
+    @ObservedObject var l = LyricsModel.shared
     var body: some View {
         VStack(alignment: .leading) {
             Text(L(l.message)).font(.system(size: 11)).foregroundStyle(Look.dim)
@@ -132,8 +143,10 @@ struct LyricsTab: View {
 
 @MainActor final class WatchModel: ObservableObject {
     static let shared = WatchModel()
-    @Published var status = "Choose any part of the screen, like a progress bar or a build status. Perch reads it and tells you when it changes."; @Published var watching = false
-    @Published var cond = "changes", text = ""
+    @Published var status = "Choose any part of the screen, like a progress bar or a build status. Perch reads it and tells you when it changes."
+    @Published var watching = false
+    @Published var cond = "changes"
+    @Published var text = ""
     var rect: CGRect?; private var sig: [UInt8]?, timer: Timer?, changedAt = Date.distantPast, changed = false
     func choose() {
         Island.shared.pinned = false; Island.shared.close()
@@ -191,7 +204,8 @@ struct AgentUse { let at: Date; let agent: String; let model: String; let projec
 
 @MainActor final class AgentModel: ObservableObject {
     static let shared = AgentModel()
-    @Published var uses: [AgentUse] = []; @Published var loaded = false; @Published var working = ""
+    @Published var uses: [AgentUse] = []
+    @Published var loaded = false; @Published var working = ""
     private var wasWorking = false, since = Date(), timer: Timer?
     private var home: URL { FileManager.default.homeDirectoryForCurrentUser }
     func start() { timer = Timer.scheduledTimer(withTimeInterval: 12, repeats: true) { _ in Task { @MainActor in self.watch() } } }
@@ -247,10 +261,11 @@ struct AgentUse { let at: Date; let agent: String; let model: String; let projec
     }
 }
 struct AgentsTab: View {
-    @ObservedObject var a = AgentModel.shared; @State private var period = 1
+    @ObservedObject var a = AgentModel.shared
+    @State private var period = 1
     var body: some View {
         let from = Calendar.current.date(byAdding: .day, value: period == 0 ? 0 : period == 1 ? -6 : -29, to: Calendar.current.startOfDay(for: Date()))!; let rows = a.uses.filter { $0.at >= from }
-        func k(_ n: Int) -> String { n >= 1_000_000 ? String(format: "%.1fM", Double(n) / 1e6) : n >= 1000 ? String(format: "%.1fK", Double(n) / 1e3) : "\(n)" }
+        let k: (Int) -> String = { n in n >= 1_000_000 ? String(format: "%.1fM", Double(n) / 1e6) : n >= 1000 ? String(format: "%.1fK", Double(n) / 1e3) : "\(n)" }
         ScrollView { VStack(alignment: .leading, spacing: 8) {
             HStack { ForEach(Array(["Today", "7 days", "30 days"].enumerated()), id: \.offset) { i, t in Button { period = i } label: { Text(L(t)).font(.system(size: 11, weight: .semibold)).foregroundStyle(period == i ? .black : .white).padding(.horizontal, 10).padding(.vertical, 5).background(Capsule().fill(period == i ? Color.white : Look.card)) }.buttonStyle(.plain) }; Pill("Refresh") { Task { await a.refresh() } } }
             if !a.found("Claude") && !a.found("Codex") { Text(L("No usage from Claude Code or Codex yet. It appears here as soon as either works on this Mac.")).font(.system(size: 11.5)).foregroundStyle(Look.dim) }
@@ -274,7 +289,8 @@ struct AgentsTab: View {
 struct ChatMsg: Identifiable { let id = UUID(); let role: String; let text: String }
 struct AssistantTab: View {
     @ObservedObject var s = Settings.shared
-    @State private var msgs: [ChatMsg] = []; @State private var input = ""; @State private var busy = false; @State private var key = Secret.get("anthropic") ?? ""
+    @State private var msgs: [ChatMsg] = []
+    @State private var input = ""; @State private var busy = false; @State private var key = Secret.get("anthropic") ?? ""
     var body: some View {
         VStack(spacing: 6) {
             if key.isEmpty { VStack(spacing: 8) { Text(L("Paste your own Anthropic API key. It is kept in the macOS Keychain and sent only to Anthropic.")).font(.system(size: 11.5)).foregroundStyle(Look.dim); SecureField("sk-ant-…", text: $input).textFieldStyle(.roundedBorder); Pill("Save key", primary: true) { Secret.set("anthropic", input); key = input; input = "" } }.padding(.horizontal, 20) }
@@ -294,8 +310,10 @@ struct AssistantTab: View {
 // MARK: - Manage: uninstall, devices, install (Homebrew), clean, pictures, processes, wallpaper
 
 struct ManageTab: View {
-    @State private var page = "Uninstall"; @State private var apps: [URL] = []; @State private var q = ""; @State private var out = ""; @State private var armed = ""
-    @State private var procs: [(String, String, Double)] = []; @State private var sizes: [String: Int64] = [:]; @State private var picked = Set<String>()
+    @State private var page = "Uninstall"
+    @State private var apps: [URL] = []; @State private var q = ""; @State private var out = ""; @State private var armed = ""
+    @State private var procs: [(String, String, Double)] = []
+    @State private var sizes: [String: Int64] = [:]; @State private var picked = Set<String>()
     static let pages = ["Uninstall", "Devices", "Install", "Cleaner", "Pictures", "Processes", "Wallpaper"]
     static let caches: [(String, String, [String])] = [("User caches", "Caches Mac rebuilds on demand.", ["~/Library/Caches"]), ("Logs", "Old log files.", ["~/Library/Logs"]), ("Crash reports", "Reports kept after a crash.", ["~/Library/Logs/DiagnosticReports"]), ("Xcode derived data", "Build products Xcode recreates.", ["~/Library/Developer/Xcode/DerivedData"])]
     var body: some View {
@@ -407,7 +425,9 @@ struct RadialView: View {
 
 @MainActor final class Mascot: ObservableObject {
     static let shared = Mascot()
-    @Published var mood = "smile", hop = false; var panel: NSPanel?
+    @Published var mood = "smile"
+    @Published var hop = false
+    var panel: NSPanel?
     func sync() {
         let p = Settings.shared.p; guard p.mascotOn else { panel?.close(); panel = nil; return }
         if panel == nil { let w = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 60, height: 60), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false); w.contentView = NSHostingView(rootView: MascotView()); w.isOpaque = false; w.backgroundColor = .clear; w.level = .statusBar; w.ignoresMouseEvents = false; w.orderFrontRegardless(); panel = w }
@@ -416,7 +436,8 @@ struct RadialView: View {
     func react(_ n: Notice) { let t = (n.title + n.body).lowercased(); mood = t.contains("fail") || t.contains("low") || t.contains("full") ? "sad" : "happy"; hop.toggle(); DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.mood = "smile" } }
 }
 struct MascotView: View {
-    @ObservedObject var m = Mascot.shared; @ObservedObject var s = Settings.shared
+    @ObservedObject var m = Mascot.shared
+    @ObservedObject var s = Settings.shared
     var body: some View {
         let shape: AnyShape = s.p.mascotShape == "pill" ? AnyShape(Capsule()) : s.p.mascotShape == "square" ? AnyShape(RoundedRectangle(cornerRadius: 12)) : AnyShape(Circle())
         ZStack { shape.fill(LinearGradient(colors: [.white, Color(white: 0.85)], startPoint: .top, endPoint: .bottom)).frame(width: s.p.mascotShape == "pill" ? 46 : 38, height: s.p.mascotShape == "pill" ? 32 : 38).shadow(radius: 3)
