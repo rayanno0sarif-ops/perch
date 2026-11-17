@@ -45,6 +45,8 @@ public static class Program
         ToastMirror.Restart();
         Watch.Restart();
         Hooks.Refresh();
+        GlassTaskbar.Restore(); GlassTaskbar.Sync(); LiveWallpaper.Sync(); DeskWidget.Sync();
+        AppDomain.CurrentDomain.UnhandledException += (_, _) => GlassTaskbar.Restore(); // never leave the Windows taskbar hidden
         Housekeeping.Start(); Tools2.Init(); Updater.Daily(); AgentWatch.Start(); Displays.Restore(); app.Dispatcher.BeginInvoke(new Action(Mascot.Sync), System.Windows.Threading.DispatcherPriority.Background);
         Svc.Clip.Load();
         DayClock.Sync();
@@ -53,6 +55,7 @@ public static class Program
         Svc.Stats.Sample();
 
         app.Run();
+        GlassTaskbar.Restore();
         Hooks.Stop();
         tray.Visible = false; tray.Dispose();
     }

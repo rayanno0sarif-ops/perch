@@ -17,6 +17,7 @@ public partial class SettingsWindow
         switch (name)
         {
             case "Windows": WindowsPage(); break;
+            case "Desktop": DesktopPage(); break;
             case "Utilities": UtilitiesPage(); break;
             case "Capture": CapturePage(); break;
             case "Display": DisplayPage(); break;
@@ -294,5 +295,28 @@ public partial class SettingsWindow
             RowItem("How it works", "Perch downloads the release, checks it against its published checksum, closes, swaps the files, keeps your old version, and starts again. Nothing is replaced if the check fails. If Perch lives in a protected folder like Program Files, run it as administrator once, or update by hand.", null);
         }
         RowItem("Go back a version", "Puts the last version Perch kept back in place and restarts.", Pill("Roll back", () => { var r = Updater.Rollback(); if (r.Length > 0) { _updMsg = r; Render(); } }));
+    }
+    void DesktopPage()
+    {
+        Section("Taskbar");
+        RowItem("Use Perch's glass taskbar", "Hides the Windows taskbar and shows a floating glass bar: Start, search, your launcher slots, open programs, quick settings and the clock. Click a program to switch to it, click the one in front to minimise it, right-click to close it. The Windows taskbar comes back when you turn this off or quit Perch.",
+            new Toggle(S.GlassTaskbar, v => { S.GlassTaskbar = v; S.Save(); GlassTaskbar.Sync(); }));
+        RowItem("Pinned programs", "The bar starts with the six launcher slots from the Tools tab.", null);
+        Section("Live wallpaper");
+        RowItem("Play a video or picture behind the desktop icons", "A looping, muted video (MP4, MOV, WMV, MKV, WebM) or any picture. It sits in the same layer as the Windows wallpaper, so icons stay on top.",
+            new Toggle(S.LiveWallpaperOn, v => { S.LiveWallpaperOn = v; S.Save(); LiveWallpaper.Sync(); }));
+        RowItem("File", S.LiveWallpaper.Length > 0 ? S.LiveWallpaper : "None chosen yet.", Pill("Choose…", () =>
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "Videos and pictures|*.mp4;*.mov;*.wmv;*.avi;*.mkv;*.webm;*.m4v;*.jpg;*.jpeg;*.png;*.bmp" };
+            if (dlg.ShowDialog() == true) { S.LiveWallpaper = dlg.FileName; S.LiveWallpaperOn = true; S.Save(); LiveWallpaper.Sync(); Render(); }
+        }));
+        RowItem("Still wallpapers", "Pick one of your pictures or one that comes with Windows from the Manage tab, under Wallpaper.", null);
+        Section("On the wallpaper");
+        RowItem("Day clock", "Day, date and time in big spaced letters. Drag it where you want it; scroll on it to resize.", new Toggle(S.DayClock, v => { S.DayClock = v; S.Save(); DayClock.Sync(); }));
+        foreach (var (id, label) in DeskWidget.Kinds)
+        {
+            var k = id;
+            RowItem(label + " widget", "A glass tile on the desktop, behind every window. Drag it to move it.", new Toggle(S.DeskWidgets.Contains(k), v => { if (v) { if (!S.DeskWidgets.Contains(k)) S.DeskWidgets.Add(k); } else S.DeskWidgets.Remove(k); S.Save(); DeskWidget.Sync(); }));
+        }
     }
 }

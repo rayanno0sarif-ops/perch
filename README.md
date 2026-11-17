@@ -64,6 +64,8 @@ All off by default, and the mouse hook steps aside while a fullscreen game is in
 - **Windows:** an Alt+Tab replacement with live previews and search; layouts (halves, thirds, two-thirds, quarters, sixths, corners, margin, next/previous display, put it back) with gaps; hold Alt and drag anywhere to move, add Shift to resize, let go at an edge to snap; mouse-button drag to switch virtual desktops; focus follows mouse.
 - **Cleaning mode:** switches the keyboard and mouse off while you wipe them; hold Esc for three seconds to finish.
 - **Capture:** frozen-screen area / window / display screenshots with an editor (arrow, line, rectangle, ellipse, pen, highlighter, text, numbers, pixelate, solid block, spotlight, crop, backgrounds, watermark), pin to screen, scrolling capture; a screen recorder with computer sound and microphone, trim, speed, MP4 and GIF; a floating camera mirror.
+- **Desktop:** a floating glass taskbar that replaces the Windows one (always restored when turned off, on quit, or on the next start after a crash), a live video or picture wallpaper behind the icons, the day clock, and weather / system / now-playing tiles on the wallpaper.
+- **Quick controls:** the Controls tiles switch Wi-Fi, Bluetooth, Night light, Do not disturb and the sound output in place; right-click opens the Windows page.
 - **Display:** DDC/CI brightness and monitor-speaker volume per display, a dimming layer, brightness shortcuts.
 - **Energy:** keep awake on a timer, while chosen apps run, while on the charger or with a second display, with an optional pointer nudge; Bluetooth off during sleep.
 - **Alerts:** CPU, memory and disk warnings with your own thresholds.

@@ -809,6 +809,7 @@ public class IslandWindow : Window
         if (instant || Settings.Current.NoMotion) { _w.Snap(); _h.Snap(); _r.Snap(); Apply(); return; }
         if (_animating) return;
         _animating = true; _clock.Restart();
+        _expanded.CacheMode = new BitmapCache { RenderAtScale = VisualTreeHelper.GetDpi(this).DpiScaleX * Settings.Current.Scale, SnapsToDevicePixels = true };
         CompositionTarget.Rendering += Frame;
     }
     void Frame(object? s, EventArgs e)
@@ -820,7 +821,7 @@ public class IslandWindow : Window
         double dt = Math.Min(0.05, raw); _clock.Restart();
         _w.Step(dt); _h.Step(dt); _r.Step(dt);
         Apply();
-        if (_w.Settled && _h.Settled && _r.Settled) { _animating = false; CompositionTarget.Rendering -= Frame; }
+        if (_w.Settled && _h.Settled && _r.Settled) { _animating = false; CompositionTarget.Rendering -= Frame; _expanded.CacheMode = null; }
     }
     bool OnBattery()
     {
@@ -842,6 +843,7 @@ public class IslandWindow : Window
         double w = Math.Max(20, _w.Value), h = Math.Max(3, _h.Value), r = Math.Max(0, _r.Value);
         bool notch = Settings.Current.Shape == "notch";
         _island.Width = w; _island.Height = h;
+        _expanded.Height = Math.Max(40, _active?.Height ?? 180);
         _island.BorderThickness = new Thickness(h < 12 ? 0 : 1); // a sliver has no room for a rim
         _island.CornerRadius = notch ? new CornerRadius(0, 0, r, r) : new CornerRadius(r);
         _glow.CornerRadius = _island.CornerRadius;
