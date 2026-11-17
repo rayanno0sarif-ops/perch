@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -44,7 +45,7 @@ static class Shell
 }
 
 // ───────────────────────── Glass taskbar ─────────────────────────
-// Hides the Windows taskbar and shows a floating glass bar: Start, your launcher slots, open programs, and a status corner.
+// Hides the Windows taskbar and shows a floating glass dock: Start, search, your launcher slots, open programs, quick settings and the clock.
 // The Windows taskbar is always put back when this is turned off or Perch closes, and on the next start if Perch ever crashed.
 public class GlassTaskbar : Window
 {
@@ -80,34 +81,139 @@ public class GlassTaskbar : Window
         while ((sec = Shell.FindWindowEx(IntPtr.Zero, sec, "Shell_SecondaryTrayWnd", null)) != IntPtr.Zero) Shell.ShowWindow(sec, hide ? 0 : 5);
     }
 
-    readonly StackPanel _apps = new() { Orientation = Orientation.Horizontal };
-    readonly TextBlock _time = T("", 11.5, "#FFFFFF", true), _date = T("", 10, Dim);
+    // ── one icon in the dock: it magnifies toward the pointer and dips when pressed, both on springs ──
+    sealed class Item
+    {
+        public readonly Border Hit; public readonly ScaleTransform Scale = new(1, 1); public readonly TranslateTransform Lift = new();
+        public readonly Spring Mag = new(100) { Response = 0.28, Damping = 1.0 }, Press = new(100) { Response = 0.22, Damping = 1.0 };
+        public readonly string Label; public readonly Action Run; public readonly Border Dot;
+        public Item(UIElement icon, string label, Action run, bool open, bool front)
+        {
+            Label = label; Run = run;
+            var face = new Grid { Width = 40, Height = 40, RenderTransformOrigin = new Point(0.5, 1), RenderTransform = new TransformGroup { Children = { Scale, Lift } } };
+            face.Children.Add(icon);
+            Dot = new Border { Width = 4, Height = 4, CornerRadius = new CornerRadius(2), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 0), Background = B(front ? "#FFFFFFFF" : "#8CFFFFFF"), Opacity = open ? 1 : 0 };
+            Hit = new Border { Background = Brushes.Transparent, Padding = new Thickness(5, 9, 5, 4), Child = new StackPanel { Children = { face, Dot } }, Cursor = Cursors.Hand };
+        }
+        public bool Settled => Mag.Settled && Press.Settled;
+        public void Step(double dt) { Mag.Step(dt); Press.Step(dt); Apply(); }
+        public void Apply() { double k = Mag.Value * Press.Value / 10000; Scale.ScaleX = Scale.ScaleY = k; Lift.Y = -(Mag.Value - 100) * 0.42; double room = (Mag.Value - 100) * 0.2; Hit.Margin = new Thickness(room, 0, room, 0); }
+    }
+
+    readonly List<Item> _items = new();
+    readonly StackPanel _apps = new() { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Bottom };
+    readonly StackPanel _left = new() { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Bottom };
+    readonly TextBlock _time = T("", 12, "#FFFFFF", true), _date = T("", 10, "#C7C7CC");
+    readonly Border _bar_, _label = new() { CornerRadius = new CornerRadius(8), Padding = new Thickness(9, 4, 9, 5), Background = B("#E61C1C1E"), BorderBrush = B("#33FFFFFF"), BorderThickness = new Thickness(1), IsHitTestVisible = false, Opacity = 0 };
+    readonly TextBlock _labelText = T("", 11.5, "#FFFFFF", true);
+    readonly Canvas _overlay = new() { IsHitTestVisible = false };
+    readonly TranslateTransform _enter = new(0, 90);
+    readonly Spring _rise = new(90) { Response = 0.42, Damping = 1.0 }, _labelOp = new(0) { Response = 0.16, Damping = 1.0 };
     readonly DispatcherTimer _tick = new() { Interval = TimeSpan.FromSeconds(1) };
-    string _sig = "";
+    readonly System.Diagnostics.Stopwatch _clock = new();
+    GlassBackdrop? _glass; bool _animating; string _sig = ""; Item? _pressed, _hover; Point? _pointer;
+    const double BarH = 66, Room = 46; // room above the bar for magnified icons and the name label
 
     GlassTaskbar()
     {
         WindowStyle = WindowStyle.None; AllowsTransparency = true; Background = Brushes.Transparent; ShowInTaskbar = false; Topmost = true; ResizeMode = ResizeMode.NoResize; ShowActivated = false; Title = "Perch taskbar";
-        SizeToContent = SizeToContent.Width; Height = 64;
-        var start = Btn(Ico("", 16), () => Hooks.Press(0x5B), "#00FFFFFF", 12, new Thickness(10, 8, 10, 8)); start.ToolTip = "Start";
-        var search = Btn(Ico("", 14), () => Hooks.Press(0x5B, 0x53), "#00FFFFFF", 12, new Thickness(10, 8, 10, 8)); search.ToolTip = "Search";
-        var status = Btn(Row(Ico("", 12), Ico("", 12).M(8), Ico("", 12).M(8)), () => Hooks.Press(0x5B, 0x41), "#00FFFFFF", 12, new Thickness(10, 8, 10, 8)); status.ToolTip = "Quick settings";
-        var clock = Btn(Col(_time.With(t => t.HorizontalAlignment = HorizontalAlignment.Right), _date.With(t => t.HorizontalAlignment = HorizontalAlignment.Right)), () => Hooks.Press(0x5B, 0x4E), "#00FFFFFF", 12, new Thickness(10, 4, 12, 4)); clock.ToolTip = "Notifications and calendar";
-        var sep = new Border { Width = 1, Height = 22, Background = B("#33FFFFFF"), Margin = new Thickness(6, 0, 6, 0) };
-        var sep2 = new Border { Width = 1, Height = 22, Background = B("#33FFFFFF"), Margin = new Thickness(6, 0, 6, 0) };
-        var row = Row(start, search, sep, _apps, sep2, status, clock);
-        Content = new Border
+        Height = BarH + Room + 10; UseLayoutRounding = true;
+        _label.Child = _labelText; _overlay.Children.Add(_label);
+        var status = new Border { Background = Brushes.Transparent, Padding = new Thickness(12, 0, 12, 0), CornerRadius = new CornerRadius(14), Cursor = Cursors.Hand, VerticalAlignment = VerticalAlignment.Center, Height = 46,
+            Child = Row(Ico("", 13), Ico("", 13).M(10), Ico("", 13).M(10)).With(r => r.VerticalAlignment = VerticalAlignment.Center), ToolTip = "Quick settings" };
+        var clock = new Border { Background = Brushes.Transparent, Padding = new Thickness(10, 0, 14, 0), CornerRadius = new CornerRadius(14), Cursor = Cursors.Hand, VerticalAlignment = VerticalAlignment.Center, Height = 46,
+            Child = Col(_time.With(t => t.HorizontalAlignment = HorizontalAlignment.Right), _date.With(t => t.HorizontalAlignment = HorizontalAlignment.Right)).With(c => c.VerticalAlignment = VerticalAlignment.Center), ToolTip = "Notifications and calendar" };
+        Hover(status, () => Hooks.Press(0x5B, 0x41)); Hover(clock, () => Hooks.Press(0x5B, 0x4E));
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Children = { _left, Divider(), _apps, Divider(), status, clock } };
+        var sheen = new Border { CornerRadius = new CornerRadius(22, 22, 0, 0), Height = 30, VerticalAlignment = VerticalAlignment.Top, Background = Glass.Sheen, IsHitTestVisible = false };
+        var inner = new Grid(); inner.Children.Add(sheen); inner.Children.Add(row.With(r => { r.Margin = new Thickness(8, 0, 8, 0); r.VerticalAlignment = VerticalAlignment.Bottom; }));
+        _bar_ = new Border
         {
-            Margin = new Thickness(10, 6, 10, 10), CornerRadius = new CornerRadius(18), Padding = new Thickness(6, 0, 6, 0), Background = Glass.Surface(false), BorderBrush = Glass.On ? Glass.Rim : Glass.RimSolid, BorderThickness = new Thickness(1),
-            Child = row, Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 18, ShadowDepth = 3, Opacity = 0.45 }
+            Height = BarH, CornerRadius = new CornerRadius(22), Background = Glass.On ? Glass.Surface(false) : B("#F0202024"), BorderBrush = Glass.On ? Glass.Rim : Glass.RimSolid, BorderThickness = new Thickness(1),
+            VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 0, 10), Child = inner, ClipToBounds = false
         };
-        SizeChanged += (_, _) => Place();
-        SourceInitialized += (_, _) => Shell.NoFocus(this);
-        _tick.Tick += (_, _) => Clock(); _tick.Start(); Closed += (_, _) => _tick.Stop();
+        var root = new Grid { RenderTransform = _enter }; root.Children.Add(_bar_); root.Children.Add(_overlay);
+        Content = root;
+        _bar_.MouseMove += (_, e) => { _pointer = e.GetPosition(_bar_); Magnify(); };
+        _bar_.MouseLeave += (_, _) => { _pointer = null; if (_pressed != null) { _pressed.Press.Target = 100; _pressed = null; } Magnify(); };
+        _bar_.SizeChanged += (_, _) => Shape();
+        SourceInitialized += (_, _) => { Shell.NoFocus(this); if (Glass.On) { _glass = new GlassBackdrop(this) { Reach = 0.75f }; Shape(); _glass.Follow(); } };
+        Loaded += (_, _) => { _rise.Target = 0; if (S.NoMotion) _rise.Snap(); Animate(); };
+        _tick.Tick += (_, _) => Clock(); _tick.Start(); Closed += (_, _) => { _tick.Stop(); CompositionTarget.Rendering -= Frame; };
         Clock(); Refresh(); Place();
     }
-    void Place() { var wa = SystemParameters.PrimaryScreenWidth; Left = (wa - ActualWidth) / 2; Top = SystemParameters.PrimaryScreenHeight - Height; }
-    void Clock() { var n = DateTime.Now; _time.Text = UI.TimeText(n); _date.Text = n.ToString("d"); }
+    static Border Divider() => new() { Width = 1, Height = 30, Background = B("#2EFFFFFF"), Margin = new Thickness(7, 0, 7, 18), VerticalAlignment = VerticalAlignment.Bottom };
+    // a plain hover wash for the text areas on the right; it responds on press, not on release
+    static void Hover(Border b, Action run)
+    {
+        b.MouseEnter += (_, _) => b.Background = B("#1FFFFFFF"); b.MouseLeave += (_, _) => { b.Background = Brushes.Transparent; b.Opacity = 1; };
+        b.MouseLeftButtonDown += (_, _) => b.Opacity = 0.7; b.MouseLeftButtonUp += (_, _) => { b.Opacity = 1; run(); };
+    }
+    void Place() { Left = 0; Width = SystemParameters.PrimaryScreenWidth; Top = SystemParameters.PrimaryScreenHeight - Height; }
+    void Shape()
+    {
+        if (_glass == null || _bar_.ActualWidth < 1) return;
+        var at = _bar_.TranslatePoint(new Point(0, 0), (UIElement)Content);
+        _glass.SetShape(at.X, at.Y + _enter.Y, _bar_.ActualWidth, _bar_.ActualHeight, 22);
+    }
+    void Clock() { var n = DateTime.Now; _time.Text = UI.TimeText(n); _date.Text = n.ToString("ddd d MMM"); }
+
+    // Icons near the pointer grow and rise; the ones further away settle back. The falloff is a cosine over about two icons on each side.
+    void Magnify()
+    {
+        Item? hover = null;
+        foreach (var it in _items)
+        {
+            double target = 100;
+            if (_pointer is Point p && !S.NoMotion)
+            {
+                var c = it.Hit.TranslatePoint(new Point(it.Hit.ActualWidth / 2, 0), _bar_).X; double d = Math.Abs(p.X - c);
+                if (d < 110) target = 100 + 34 * Math.Cos(d / 110 * Math.PI / 2);
+                if (d < it.Hit.ActualWidth / 2) hover = it;
+            }
+            it.Mag.Target = target;
+        }
+        if (_pointer is Point pp) { foreach (var it in _items) if (it.Hit.IsMouseOver) hover = it; }
+        if (hover != _hover)
+        {
+            _hover = hover;
+            if (hover != null) { _labelText.Text = hover.Label; _label.UpdateLayout(); }
+            _labelOp.Target = hover != null ? 100 : 0;
+        }
+        Animate();
+    }
+    void Animate() { if (_animating) return; _animating = true; _clock.Restart(); CompositionTarget.Rendering += Frame; }
+    void Frame(object? s, EventArgs e)
+    {
+        double dt = Math.Min(0.05, _clock.Elapsed.TotalSeconds); _clock.Restart();
+        bool busy = false;
+        foreach (var it in _items) { if (S.NoMotion) { it.Mag.Snap(); it.Press.Snap(); it.Apply(); } else it.Step(dt); busy |= !it.Settled; }
+        _rise.Step(dt); _labelOp.Step(dt); busy |= !_rise.Settled || !_labelOp.Settled;
+        _enter.Y = _rise.Value; Opacity = Math.Clamp(1 - _rise.Value / 90, 0, 1);
+        _label.Opacity = _labelOp.Value / 100;
+        if (_hover != null)
+        {
+            var c = _hover.Hit.TranslatePoint(new Point(_hover.Hit.ActualWidth / 2, 0), _overlay);
+            Canvas.SetLeft(_label, c.X - _label.ActualWidth / 2); Canvas.SetTop(_label, c.Y - 40 - (_hover.Mag.Value - 100) * 0.42);
+        }
+        Shape();
+        if (!busy) { _animating = false; CompositionTarget.Rendering -= Frame; Shape(); }
+    }
+
+    Item MakeItem(UIElement icon, string label, Action run, bool open = false, bool front = false)
+    {
+        var it = new Item(icon, label, run, open, front);
+        it.Hit.MouseLeftButtonDown += (_, e) => { _pressed = it; it.Press.Target = 86; Animate(); e.Handled = true; }; // feedback on press
+        it.Hit.MouseLeftButtonUp += (_, e) => { if (_pressed == it) { it.Press.Target = 100; _pressed = null; Animate(); it.Run(); _sig = ""; } e.Handled = true; };
+        _items.Add(it); return it;
+    }
+    static UIElement WindowsMark()
+    {
+        var g = new UniformGrid { Rows = 2, Columns = 2, Width = 17, Height = 17 };
+        for (int i = 0; i < 4; i++) g.Children.Add(new Border { Background = B("#E6FFFFFF"), Margin = new Thickness(0.8), CornerRadius = new CornerRadius(1.5) });
+        return new Border { CornerRadius = new CornerRadius(11), Background = B("#26FFFFFF"), Child = g };
+    }
+    static UIElement Glyph(string g) => new Border { CornerRadius = new CornerRadius(11), Background = B("#26FFFFFF"), Child = Ico(g, 17) };
 
     // Launcher slots first, then programs with open windows that are not already a slot.
     public void Refresh()
@@ -115,28 +221,61 @@ public class GlassTaskbar : Window
         var running = WinList.List(true).GroupBy(w => w.Path, StringComparer.OrdinalIgnoreCase).Where(g => g.Key.Length > 0).ToList();
         var slots = S.Slots.Where(p => p.Length > 0 && File.Exists(p)).ToList();
         string sig = string.Join("|", slots) + "#" + string.Join("|", running.Select(g => g.Key + g.Count() + g.Any(w => w.Handle == Fg())));
-        if (sig == _sig) return; _sig = sig; _apps.Children.Clear();
-        foreach (var p in slots) _apps.Children.Add(AppButton(p, running.FirstOrDefault(g => g.Key.Equals(p, StringComparison.OrdinalIgnoreCase))?.ToList()));
-        foreach (var g in running.Where(g => !slots.Contains(g.Key, StringComparer.OrdinalIgnoreCase))) _apps.Children.Add(AppButton(g.Key, g.ToList()));
+        if (sig == _sig) return; _sig = sig;
+        _items.Clear(); _left.Children.Clear(); _apps.Children.Clear(); _hover = null; _labelOp.Target = 0;
+        _left.Children.Add(MakeItem(WindowsMark(), "Start", () => Hooks.Press(0x5B)).Hit);
+        _left.Children.Add(MakeItem(Glyph(""), "Search", () => Hooks.Press(0x5B, 0x53)).Hit);
+        foreach (var p in slots) _apps.Children.Add(AppItem(p, running.FirstOrDefault(g => g.Key.Equals(p, StringComparison.OrdinalIgnoreCase))?.ToList()));
+        foreach (var g in running.Where(g => !slots.Contains(g.Key, StringComparer.OrdinalIgnoreCase))) _apps.Children.Add(AppItem(g.Key, g.ToList()));
+        if (_pointer != null) Magnify();
     }
     [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] static extern bool IsIconic(IntPtr h);
     static IntPtr Fg() => GetForegroundWindow();
-    Border AppButton(string path, List<WinInfo>? wins)
+    UIElement AppItem(string path, List<WinInfo>? wins)
     {
         bool open = wins is { Count: > 0 }, front = open && wins!.Any(w => w.Handle == Fg());
-        var icon = new Image { Source = Native.FileIcon(path), Width = 26, Height = 26 };
-        var dot = new Border { Width = front ? 14 : 5, Height = 3, CornerRadius = new CornerRadius(1.5), Background = B(front ? "#FFFFFF" : "#99FFFFFF"), Opacity = open ? 1 : 0, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 3, 0, 0) };
-        var b = Btn(Col(icon, dot), () =>
+        var img = new Image { Source = Icons.Large(path), Width = 40, Height = 40 }; RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
+        string name = Path.GetFileNameWithoutExtension(path); try { var d = System.Diagnostics.FileVersionInfo.GetVersionInfo(path).FileDescription; if (!string.IsNullOrWhiteSpace(d) && d.Length < 40) name = d.Trim(); } catch { }
+        var it = MakeItem(img, name, () =>
         {
             if (!open) { Svc.Open(path); return; }
             var w = wins![0];
             if (front && !IsIconic(w.Handle)) Shell.ShowWindow(w.Handle, 6); else WinList.Activate(w.Handle); // clicking the program in front minimises it, like Windows
-            _sig = "";
-        }, front ? "#26FFFFFF" : "#00FFFFFF", 10, new Thickness(6, 7, 6, 3));
-        b.ToolTip = open ? wins![0].Title : Path.GetFileNameWithoutExtension(path); b.Margin = new Thickness(1, 0, 1, 0);
-        if (open) b.MouseRightButtonUp += (_, e) => { foreach (var w in wins!) WinList.Close(w.Handle); e.Handled = true; _sig = ""; };
-        return b;
+        }, open, front);
+        if (open) it.Hit.MouseRightButtonUp += (_, e) => { foreach (var w in wins!) WinList.Close(w.Handle); e.Handled = true; _sig = ""; };
+        return it.Hit;
+    }
+}
+
+// Large, sharp program icons (the shell's own 64 px image), so a magnified icon stays crisp.
+static class Icons
+{
+    static readonly Dictionary<string, ImageSource?> Cache = new(StringComparer.OrdinalIgnoreCase);
+    [ComImport, Guid("bcc18b79-ba16-442f-80c4-8a59c30c463b"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IShellItemImageFactory { [PreserveSig] int GetImage(SIZE size, int flags, out IntPtr bmp); }
+    [StructLayout(LayoutKind.Sequential)] struct SIZE { public int cx, cy; }
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = false)] static extern void SHCreateItemFromParsingName(string path, IntPtr bc, [MarshalAs(UnmanagedType.LPStruct)] Guid riid, out IShellItemImageFactory f);
+    [DllImport("gdi32.dll")] static extern bool DeleteObject(IntPtr h);
+    [StructLayout(LayoutKind.Sequential)] struct BITMAP { public int bmType, bmWidth, bmHeight, bmWidthBytes; public ushort bmPlanes, bmBitsPixel; public IntPtr bmBits; }
+    [DllImport("gdi32.dll")] static extern int GetObject(IntPtr h, int size, out BITMAP b);
+    public static ImageSource? Large(string path)
+    {
+        if (Cache.TryGetValue(path, out var c)) return c;
+        ImageSource? src = null;
+        try
+        {
+            SHCreateItemFromParsingName(path, IntPtr.Zero, typeof(IShellItemImageFactory).GUID, out var f);
+            if (f.GetImage(new SIZE { cx = 64, cy = 64 }, 0x1 /* icon only, scale up */, out var hbmp) == 0)
+            {
+                // read the bits directly: CreateBitmapSourceFromHBitmap drops the alpha channel and gives the icon a black square
+                try { if (GetObject(hbmp, Marshal.SizeOf<BITMAP>(), out var bm) != 0 && bm.bmBitsPixel == 32 && bm.bmBits != IntPtr.Zero) { var bs = BitmapSource.Create(bm.bmWidth, bm.bmHeight, 96, 96, PixelFormats.Pbgra32, null, bm.bmBits, bm.bmWidthBytes * bm.bmHeight, bm.bmWidthBytes); bs.Freeze(); src = bs; } }
+                finally { DeleteObject(hbmp); }
+            }
+        }
+        catch { }
+        src ??= Native.FileIcon(path);
+        return Cache[path] = src;
     }
 }
 
