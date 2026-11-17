@@ -557,12 +557,14 @@ public class ControlsTab : TabBase
 {
     public override string Id => "controls"; public override string Name => "Controls"; public override string Glyph => "";
     public override double Height => 238;
-    MiniSlider _vol, _bri; TextBlock _volPct, _briPct, _muteSub, _soundSub; Grid _briGrid; Border _muteTile; Segmented _power;
+    MiniSlider _vol, _bri; TextBlock _volPct, _briPct, _muteSub, _soundSub, _wifiSub, _btSub, _nightSub, _focusSub; Grid _briGrid; Border _muteTile; Segmented _power;
 
-    static Border Tile(string glyph, string title, TextBlock sub, Action click, string bg = Card)
+    static Border Tile(string glyph, string title, TextBlock sub, Action click, string bg = Card, string? settings = null)
     {
         var badge = new Border { Width = 22, Height = 22, CornerRadius = new CornerRadius(11), Background = B("#33FFFFFF"), Child = Ico(glyph, 11), HorizontalAlignment = HorizontalAlignment.Left };
-        return Btn(Col(badge, T(title, 11, "#FFFFFF", true).M(0, 3), sub), click, bg, 12, new Thickness(9, 7, 9, 7));
+        var b = Btn(Col(badge, T(title, 11, "#FFFFFF", true).M(0, 3), sub), click, bg, 12, new Thickness(9, 7, 9, 7));
+        if (settings != null) { b.ToolTip = "Click to switch · right-click for Windows settings"; b.MouseRightButtonUp += (_, e) => { Svc.Open(settings); e.Handled = true; }; }
+        return b;
     }
 
     protected override FrameworkElement Build()
@@ -579,15 +581,16 @@ public class ControlsTab : TabBase
         _briGrid = new Grid { Width = 46, ToolTip = "Screen brightness" }; _briGrid.Children.Add(_bri); _briGrid.Children.Add(_briPct.M(0, 7)); _briGrid.Children.Add(briIco);
         _bri.IsHitTestVisible = false; _briGrid.Opacity = 0.5;
 
-        _muteSub = T("", 10.5, "#C7C7CC"); _soundSub = T("", 10.5, "#C7C7CC");
+        _muteSub = T("", 10.5, "#C7C7CC"); _soundSub = T("", 10.5, "#C7C7CC"); _wifiSub = T("…", 10.5, "#C7C7CC"); _btSub = T("…", 10.5, "#C7C7CC"); _nightSub = T("…", 10.5, "#C7C7CC"); _focusSub = T("…", 10.5, "#C7C7CC");
+        _soundSub.TextTrimming = TextTrimming.CharacterEllipsis;
         _muteTile = Tile("", "Mute", _muteSub, () => { Svc.Speaker.Muted = !Svc.Speaker.Muted; Tick(); });
         var tiles = MakeGrid("*,6,*,6,*", "*,6,*");
-        tiles.Children.Add(Tile("", "Wi-Fi", T("Settings", 10.5, "#C7C7CC"), () => Svc.Open("ms-settings:network-wifi")).At(0, 0));
-        tiles.Children.Add(Tile("", "Bluetooth", T("Settings", 10.5, "#C7C7CC"), () => Svc.Open("ms-settings:bluetooth")).At(0, 2));
-        tiles.Children.Add(Tile("", "Night light", T("Settings", 10.5, "#C7C7CC"), () => Svc.Open("ms-settings:nightlight")).At(0, 4));
-        tiles.Children.Add(Tile("", "Focus", T("Settings", 10.5, "#C7C7CC"), () => Svc.Open("ms-settings:quiethours")).At(2, 0));
+        tiles.Children.Add(Tile("", "Wi-Fi", _wifiSub, async () => { _wifiSub.Text = Quick.Label(await Quick.ToggleRadio(Windows.Devices.Radios.RadioKind.WiFi)); }, Card, "ms-settings:network-wifi").At(0, 0));
+        tiles.Children.Add(Tile("", "Bluetooth", _btSub, async () => { _btSub.Text = Quick.Label(await Quick.ToggleRadio(Windows.Devices.Radios.RadioKind.Bluetooth)); }, Card, "ms-settings:bluetooth").At(0, 2));
+        tiles.Children.Add(Tile("", "Night light", _nightSub, () => _nightSub.Text = Quick.Label(Quick.ToggleNightLight()), Card, "ms-settings:nightlight").At(0, 4));
+        tiles.Children.Add(Tile("", "Do not disturb", _focusSub, () => _focusSub.Text = Quick.Label(Quick.ToggleDnd()), Card, "ms-settings:notifications").At(2, 0));
         tiles.Children.Add(_muteTile.At(2, 2));
-        tiles.Children.Add(Tile("", "Sound", _soundSub, () => Svc.Open("ms-settings:sound")).At(2, 4));
+        tiles.Children.Add(Tile("", "Sound", _soundSub, () => { Quick.NextOutput(); _soundSub.Text = Svc.Speaker.Name; }, Card, "ms-settings:sound").At(2, 4));
 
         _power = new Segmented(new[] { "Saver", "Balanced", "Performance" }, 1, i =>
         {
@@ -608,6 +611,13 @@ public class ControlsTab : TabBase
         _soundSub.Text = Svc.Speaker.Name;
         Tick();
         LoadBrightness();
+        LoadStates();
+    }
+    async void LoadStates()
+    {
+        _wifiSub.Text = Quick.Label(await Quick.RadioOn(Windows.Devices.Radios.RadioKind.WiFi));
+        _btSub.Text = Quick.Label(await Quick.RadioOn(Windows.Devices.Radios.RadioKind.Bluetooth));
+        _nightSub.Text = Quick.Label(Quick.NightLightOn); _focusSub.Text = Quick.Label(Quick.DndOn);
     }
     async void LoadBrightness()
     {
@@ -745,4 +755,53 @@ public class CallTab : TabBase
 public static class FluentExt
 {
     public static T With<T>(this T e, Action<T> a) { a(e); return e; }
+}
+
+// The Controls tiles switch things in place instead of opening Settings.
+public static class Quick
+{
+    public static string Label(bool? on) => on == null ? "Unavailable" : on.Value ? "On" : "Off";
+
+    static async System.Threading.Tasks.Task<Windows.Devices.Radios.Radio?> Find(Windows.Devices.Radios.RadioKind k)
+    {
+        try { await Windows.Devices.Radios.Radio.RequestAccessAsync(); return (await Windows.Devices.Radios.Radio.GetRadiosAsync()).FirstOrDefault(r => r.Kind == k); } catch { return null; }
+    }
+    public static async System.Threading.Tasks.Task<bool?> RadioOn(Windows.Devices.Radios.RadioKind k) { var r = await Find(k); return r == null ? null : r.State == Windows.Devices.Radios.RadioState.On; }
+    public static async System.Threading.Tasks.Task<bool?> ToggleRadio(Windows.Devices.Radios.RadioKind k)
+    {
+        var r = await Find(k); if (r == null) return null;
+        var to = r.State == Windows.Devices.Radios.RadioState.On ? Windows.Devices.Radios.RadioState.Off : Windows.Devices.Radios.RadioState.On;
+        try { return await r.SetStateAsync(to) == Windows.Devices.Radios.RadioAccessStatus.Allowed ? to == Windows.Devices.Radios.RadioState.On : r.State == Windows.Devices.Radios.RadioState.On; } catch { return null; }
+    }
+
+    // shortcut: Night light has no public API; this flips the state blob Settings itself writes. If a Windows update changes the format, the tile shows Unavailable.
+    const string NightKey = @"Software\Microsoft\Windows\CurrentVersion\CloudStore\Store\DefaultAccount\Current\default$windows.data.bluelightreduction.bluelightreductionstate\windows.data.bluelightreduction.bluelightreductionstate";
+    static byte[]? NightData() { try { using var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(NightKey); return k?.GetValue("Data") as byte[]; } catch { return null; } }
+    public static bool? NightLightOn => NightData() is { Length: > 24 } d ? d[18] == 0x15 : null;
+    public static bool? ToggleNightLight()
+    {
+        var d = NightData(); if (d is not { Length: > 24 }) return null;
+        bool on = d[18] == 0x15; var l = d.ToList();
+        if (on) { if (l[23] == 0x10 && l[24] == 0x00) l.RemoveRange(23, 2); l[18] = 0x13; }
+        else { l.InsertRange(23, new byte[] { 0x10, 0x00 }); l[18] = 0x15; }
+        for (int i = 10; i < 15; i++) if (l[i] != 0xFF) { l[i]++; break; } // a newer timestamp makes Windows apply it
+        try { using var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(NightKey, true); k?.SetValue("Data", l.ToArray(), Microsoft.Win32.RegistryValueKind.Binary); } catch { return null; }
+        return NightLightOn;
+    }
+
+    // Do not disturb: the same switch as Settings, Notifications (banners off, they still collect in the notification centre).
+    const string DndKey = @"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings";
+    public static bool? DndOn { get { try { using var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(DndKey); return k?.GetValue("NOC_GLOBAL_SETTING_TOASTS_ENABLED") is int v && v == 0; } catch { return null; } } }
+    public static bool? ToggleDnd()
+    {
+        try { bool to = DndOn != true; using var k = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(DndKey); k.SetValue("NOC_GLOBAL_SETTING_TOASTS_ENABLED", to ? 0 : 1, Microsoft.Win32.RegistryValueKind.DWord); return DndOn; } catch { return null; }
+    }
+
+    public static void NextOutput()
+    {
+        var outs = Mixer.Outputs(); if (outs.Count < 2) { Svc.Notices.Add("Only one sound output", "Connect headphones or speakers to switch.", "\uE7F5"); return; }
+        int at = Math.Max(0, outs.FindIndex(o => o.Default)), next = (at + 1) % outs.Count;
+        bool ok = Mixer.SetOutput(outs[next].Id);
+        Svc.Notices.Add(ok ? "Sound output changed" : "Could not switch output", outs[next].Name, "\uE7F5");
+    }
 }

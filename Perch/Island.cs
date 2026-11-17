@@ -197,17 +197,7 @@ public class IslandWindow : Window
                     case "toggle": TogglePinned(); break;
                     case "play": Svc.Media.Toggle(); break;
                     case "timer": Svc.Focus.Toggle(); break;
-                    case "output":
-                        {
-                            var outs = Mixer.Outputs();
-                            if (outs.Count > 1)
-                            {
-                                int at = Math.Max(0, outs.FindIndex(o => o.Default)), next = (at + 1) % outs.Count;
-                                bool ok = Mixer.SetOutput(outs[next].Id);
-                                Svc.Notices.Add(ok ? "Sound output changed" : "Could not switch output", outs[next].Name, "\uE7F5");
-                            }
-                            break;
-                        }
+                    case "output": Quick.NextOutput(); break;
                     case "colour": Tools.PickColour(); break;
                     case "commandbar": CommandBar.Toggle(); break;
                     case "powermode": { int cur = Native.ActivePlan(); Native.SetPlan((Math.Max(0, cur) + 1) % 3); Svc.Notices.Add("Power mode changed", "", "\uE945"); break; }
